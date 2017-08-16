@@ -3,7 +3,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-
+    "log"
 	"strings"
 )
 type dcc_exitcode int
@@ -157,9 +157,52 @@ func dcc_scan_args(argvs []string,outputfile string,input_file string)dcc_exitco
 }
 func dcc_compile_local(argvs []string,filename string)bool{
 	 cmd := exec.Command("cc",os.Args[1:]...)
-     _,err:=cmd.CombinedOutput()
+     output,err:=cmd.CombinedOutput()
      if err!= nil{
-     	fmt.Println(err)
+     	//fmt.Println(err)
+     	log.Fatal(err)
+     	log.Fatal(output,err)
+     	return false
+     }
+     return true
+}
+func dcc_strip_dasho(argvs []string)[]string{
+	var result []string
+	for i:=0;i<len(argvs);{
+		if argvs[i] == "-o"{
+			i=i+2
+		}else if(strings.HasPrefix(argvs[i],"-o")){
+			i++
+		}else{
+             result = append(result,argvs[i])
+			 i++
+		}
+	}
+	return result
+
+}
+func dcc_set_action_opt(argvs []string){
+	 for i:=0;i<len(argvs);i++{
+	 	  if argvs[i] == "-c" || argvs[i] == "-S"{
+	 	  	 argvs[i]= "-E"
+	 	  }
+
+	 }
+
+}
+func dcc_cpp_maybe(argvs[] string,input_fname string,pcpp_fname *string)bool{
+	var cpp_argv []string
+	if dcc_is_preprocessed(input_fname){
+		*pcpp_fname = input_fname
+		return true
+	}
+    cpp_argv = dcc_strip_dasho(argvs)
+    dcc_set_action_opt(cpp_argv)
+    fmt.Println("dcc_cpp_maybe",cpp_argv)
+    cmd := exec.Command("cc",cpp_argv[0:]...)
+    _,err:=cmd.CombinedOutput()
+     if err!= nil{
+     	fmt.Println("dcc_cpp_maybe",err)
      	return false
      }
      return true
@@ -168,15 +211,17 @@ func dcc_build_somewhere(argvs []string) int{
       
       var outputfile string
       var input_file string
-
+      var cpp_fanme  string
       argvs = dcc_expand_preprocessor_options(argvs)
-      fmt.Println(argvs)
+    
       ret := dcc_scan_args(argvs,outputfile,input_file)
       if ret == EXIT_DISTCC_FAILED{
       	 fmt.Println("local")
       	 dcc_compile_local(argvs,outputfile)
       	 return 0
       }
+      dcc_cpp_maybe(argvs,input_file,&cpp_fanme)
+
       fmt.Println("success")
 
 
@@ -187,14 +232,13 @@ func dcc_build_somewhere(argvs []string) int{
 func main(){
 
      //test:= dcc_expand_preprocessor_options(os.Args);
-     //fmt.Println(test)
-     //eturn ;
+    
 	 dcc_build_somewhere(os.Args)
-     fmt.Println(os.Args)
+     
     
      
      return 
-     cmd := exec.Command("cc",os.Args[1:]...)
+     cmd := exec.Command("ls","-l aa")
      out,err:=cmd.CombinedOutput()
      if err!= nil{
      	fmt.Println(err)
