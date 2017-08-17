@@ -82,7 +82,7 @@ func dcc_is_preprocessed(filename string)bool {
 
 
 }
-func dcc_scan_args(argvs []string,outputfile string,input_file string)dcc_exitcode{
+func dcc_scan_args(argvs []string,poutputfile *string,pinput_file *string)dcc_exitcode{
 
     seen_opt_s:=false
     seen_opt_c:=false
@@ -122,34 +122,34 @@ func dcc_scan_args(argvs []string,outputfile string,input_file string)dcc_exitco
 	        	   seen_opt_c = true
 	        }else if argvs[i] == "-o"{
 	        	   i++;
-	        	   if outputfile != ""{
+	        	   if *poutputfile != ""{
 	        	   	return EXIT_DISTCC_FAILED
 	        	   }
-                   outputfile = argvs[i]
+                   *poutputfile = argvs[i]
 	        }else if strings.HasPrefix(argvs[i],"-o"){
-	        	   if outputfile != ""{
+	        	   if *poutputfile != ""{
 	        	   	return EXIT_DISTCC_FAILED
 	        	   }
-                   outputfile = strings.TrimPrefix(argvs[i],"-o")
+                   *poutputfile = strings.TrimPrefix(argvs[i],"-o")
                    
 	        }		
 		}else {
 			 if dcc_is_source(argvs[i]){
-			 	   input_file = argvs[i]
+			 	   *pinput_file = argvs[i]
 
 			 	}else if strings.HasSuffix(argvs[i],".o") {
 
-			 		 if outputfile != ""{
+			 		 if *poutputfile != ""{
 	        	   	 return EXIT_DISTCC_FAILED
 	        	    }
-                   outputfile = argvs[i]
+                   *poutputfile = argvs[i]
 			 	}
 		}	
 	}
 	if (!seen_opt_c && !seen_opt_s){
 		return EXIT_DISTCC_FAILED
 	}
-	if input_file == ""{
+	if *pinput_file == ""{
 	   return EXIT_DISTCC_FAILED
 	}
 
@@ -159,8 +159,7 @@ func dcc_compile_local(argvs []string,filename string)bool{
 	 cmd := exec.Command("cc",os.Args[1:]...)
      output,err:=cmd.CombinedOutput()
      if err!= nil{
-     	//fmt.Println(err)
-     	log.Fatal(err)
+     	
      	log.Fatal(output,err)
      	return false
      }
@@ -190,22 +189,67 @@ func dcc_set_action_opt(argvs []string){
 	 }
 
 }
+func dcc_preproc_extern(args string)string{
+	
+	splitext := strings.Split(args,".")
+	if len(splitext) == 1{
+		return ""
+	}
+	ext := splitext[1]
+	if ext == "i" || ext == "c"{
+		return splitext[0]+".i"
+	}
+	if ext == "c" || ext == "cc" || ext == "cpp" || ext == "cxx" || ext == "cp" || ext == "c++" || ext == "C" || ext == "i"{
+	   	return splitext[0]+".ii"
+	 }
+    if ext == "mi" || ext == "m"{
+    	return splitext[0]+".mi"
+    }
+    if ext == "mii" || ext == "mm" || ext == "M"{
+    	return splitext[0]+".mii"
+    }
+    if ext == "s" || ext == "S"{
+    	return splitext[0]+".s"
+    }
+    return ""
+}
 func dcc_cpp_maybe(argvs[] string,input_fname string,pcpp_fname *string)bool{
 	var cpp_argv []string
+	fmt.Printf("input_fame%s \n",input_fname)
 	if dcc_is_preprocessed(input_fname){
 		*pcpp_fname = input_fname
 		return true
 	}
     cpp_argv = dcc_strip_dasho(argvs)
     dcc_set_action_opt(cpp_argv)
-    fmt.Println("dcc_cpp_maybe",cpp_argv)
+    *pcpp_fname = dcc_preproc_extern(input_fname)
+    if len(*pcpp_fname) == 0{
+    	log.Fatal(input_fname)
+    }
+    fmt.Println("jjj")
+    log.Printf("local preprocess %s ,cpp_fname%s",cpp_argv,*pcpp_fname)
     cmd := exec.Command("cc",cpp_argv[0:]...)
-    _,err:=cmd.CombinedOutput()
+    data,err:=cmd.CombinedOutput()
      if err!= nil{
-     	fmt.Println("dcc_cpp_maybe",err)
+     	log.Fatal(err)
      	return false
      }
+     dcc_write_file(*pcpp_fname,data)
      return true
+}
+func dcc_write_file(fname string,data []byte){
+	f,err := os.Create(fname)
+	if err != nil{
+		panic(err)
+	}
+	defer f.Close()
+	_,err =f.Write(data)
+	if err!= nil{
+		panic(err)
+	}
+	f.Sync()
+
+
 }
 func dcc_build_somewhere(argvs []string) int{
       
@@ -214,7 +258,7 @@ func dcc_build_somewhere(argvs []string) int{
       var cpp_fanme  string
       argvs = dcc_expand_preprocessor_options(argvs)
     
-      ret := dcc_scan_args(argvs,outputfile,input_file)
+      ret := dcc_scan_args(argvs,&outputfile,&input_file)
       if ret == EXIT_DISTCC_FAILED{
       	 fmt.Println("local")
       	 dcc_compile_local(argvs,outputfile)
