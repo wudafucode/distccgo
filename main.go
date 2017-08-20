@@ -250,6 +250,33 @@ func dcc_write_file(fname string,data []byte){
 	f.Sync()
 
 
+} 
+func dcc_strip_local_args(argvs []string)[]string{
+	var result []string
+	for i:=0;i<len(argvs);i++{
+		 if argvs[i] == "-D" || argvs[i] == "-I" || argvs[i] == "-U"||
+		    argvs[i] == "-L" || argvs[i] == "l" || argvs[i] == "-MF"||
+		    argvs[i] == "-MT" || argvs[i] == "-MQ" || argvs[i] == "-include"||
+		    argvs[i] == "imacros" || argvs[i] == "-iprefix" || argvs[i] =="-iwithpreifx"||
+		    argvs[i] == "idirafter"{
+                 i++
+                 continue
+		    }
+		 if strings.HasPrefix(argvs[i],"-Wp,") || strings.HasPrefix(argvs[i],"-Wl,") || strings.HasPrefix(argvs[i],"-D") ||
+		    strings.HasPrefix(argvs[i],"-U") || strings.HasPrefix(argvs[i],"-I") || strings.HasPrefix(argvs[i],"-l") ||
+		    strings.HasPrefix(argvs[i],"-MF") || strings.HasPrefix(argvs[i],"-MT") || strings.HasPrefix(argvs[i],"-MQ"){
+            
+            continue
+		 }
+         if argvs[i] == "-undef" || argvs[i] == "nostdinc" || argvs[i] == "nostdinc++" ||
+            argvs[i] == "-MD" || argvs[i] == "-MMD" || argvs[i] == "-MG" || argvs[i] == "-MP"{
+            	continue        
+            }
+         result = append(result,argvs[i])
+	}
+	return result
+
+
 }
 func dcc_build_somewhere(argvs []string) int{
       
@@ -265,8 +292,9 @@ func dcc_build_somewhere(argvs []string) int{
       	 return 0
       }
       dcc_cpp_maybe(argvs,input_file,&cpp_fanme)
-
-      fmt.Println("success")
+      server_side_argv:= dcc_strip_local_args(argvs)
+      dcc_compile_local(server_side_argv,outputfile)
+      fmt.Println("success",server_side_argv)
 
 
 
