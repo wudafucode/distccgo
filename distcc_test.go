@@ -2,6 +2,8 @@ package main
 import (
         "testing"
         "strings"
+        "fmt"
+        "os"
 )
 
 func Test_dcc_is_source(t *testing.T){
@@ -118,5 +120,80 @@ func Test_dcc_strip_args(t *testing.T){
  
     t.Log("dcc_strip_args passed")
 
+
+}
+type Compilation_Case struct{
+
+}
+
+func (this *Compilation_Case)sourceFilename()string{
+   return "testtmp.c"  
+}
+func (this *Compilation_Case)headerFilename()string{
+   return "testhdr.h"  
+}
+func (this *Compilation_Case)headerSource()string{
+   return ""  
+}
+func (this *Compilation_Case)compileCmd()string{
+  return "distcc"+" -o testtmp.o " + " -c "+this.sourceFilename()
+
+}
+
+type CompileHello_Case struct{
+      Compilation_Case
+}
+func (this *CompileHello_Case)headerSource()string{
+      return "#define HELLO_WORLD \"hello world\" "
+}
+func (this *CompileHello_Case)source()string{
+        return "#include<stdio.h>\n"+ this.headerFilename() + "\n"+"int main(void) {\nputs(HELLO_WORLD);\n return 0;}"
+       //return "12%s3" + this.headerSource()
+}
+type Compile interface{
+    
+     headerSource()string
+     headerFilename()string
+     sourceFilename()string
+     source()string
+
+     compileCmd()string
+
+}
+//type build struct{
+
+//}
+//func (this *build)source()string{
+func build(this Compile)bool{
+     //fmt.Printf(this.compileCmd())
+     fmt.Printf(this.source())
+     f,err := os.Create(this.sourceFilename())
+     if err != nil{
+        panic(err)
+     }
+     _,err =f.Write([]byte(this.source()))
+    if err!= nil{
+      panic(err)
+    }
+
+    f.Close()
+    f,err = os.Create(this.headerFilename())
+    if err != nil{
+       panic(err)
+    }
+     _,err =f.Write([]byte(this.headerSource()))
+    if err!= nil{
+      panic(err)
+    }
+    f.Close()
+  
+     return true
+}
+func Test_CompileHello_Case(t *testing.T){
+      var test CompileHello_Case
+      ret:=build(&test)
+      if ret == false{
+        t.Error("not passed,expect:");
+      }
 
 }
