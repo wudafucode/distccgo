@@ -2,7 +2,8 @@ package main
 import (
         "testing"
         "strings"
-        "fmt"
+        //"fmt"
+        //"time"
         "os"
 )
 
@@ -136,9 +137,14 @@ func (this *Compilation_Case)headerSource()string{
    return ""  
 }
 func (this *Compilation_Case)compileCmd()string{
-  return "distcc"+" -o testtmp.o " + " -c "+this.sourceFilename()
+  return "distccgo"+" -o testtmp.o " + "-c "+this.sourceFilename()
 
 }
+func (this *Compilation_Case)linkCmd()string{
+  return "distccgo"+ " -o testtmp testtmp.o" 
+}
+
+
 
 type CompileHello_Case struct{
       Compilation_Case
@@ -147,7 +153,7 @@ func (this *CompileHello_Case)headerSource()string{
       return "#define HELLO_WORLD \"hello world\" "
 }
 func (this *CompileHello_Case)source()string{
-        return "#include<stdio.h>\n"+ this.headerFilename() + "\n"+"int main(void) {\nputs(HELLO_WORLD);\n return 0;}"
+        return "#include<stdio.h>\n"+ "#include\"" +this.headerFilename() + "\"\n"+"int main(void) {\nputs(HELLO_WORLD);\n return 0;}"
        //return "12%s3" + this.headerSource()
 }
 type Compile interface{
@@ -158,40 +164,73 @@ type Compile interface{
      source()string
 
      compileCmd()string
+     linkCmd()string
+}
+type runbuild struct{
+     tcomplie Compile
 
 }
-//type build struct{
-
-//}
 //func (this *build)source()string{
-func build(this Compile)bool{
-     //fmt.Printf(this.compileCmd())
-     fmt.Printf(this.source())
-     f,err := os.Create(this.sourceFilename())
+func (this *runbuild)createSource()bool{
+     //fmt.Printf(this.tcomplie.source())
+     f,err := os.OpenFile(this.tcomplie.sourceFilename(),os.O_CREATE|os.O_RDWR,0777)
      if err != nil{
         panic(err)
      }
-     _,err =f.Write([]byte(this.source()))
+     _,err =f.Write([]byte(this.tcomplie.source()))
     if err!= nil{
       panic(err)
     }
-
+    f.Sync()
     f.Close()
-    f,err = os.Create(this.headerFilename())
+    f,err = os.OpenFile(this.tcomplie.headerFilename(),os.O_CREATE|os.O_RDWR,0777)
     if err != nil{
        panic(err)
     }
-     _,err =f.Write([]byte(this.headerSource()))
+     _,err =f.Write([]byte(this.tcomplie.headerSource()))
     if err!= nil{
       panic(err)
     }
+    f.Sync()
     f.Close()
-  
-     return true
+    return true
 }
-func Test_CompileHello_Case(t *testing.T){
+func (this *runbuild)link(){
+  cmd:=strings.Split(this.tcomplie.linkCmd()," ")
+  dcc_build_somewhere(cmd)
+}
+func (this *runbuild)compile(){
+  cmd:=strings.Split(this.tcomplie.compileCmd()," ")
+  dcc_build_somewhere(cmd)
+  return 
+
+}
+func (this *runbuild)runtest()bool{
+  this.createSource()
+   //time.Sleep(time.Duration(5)*time.Second)
+   this.compile()
+   this.link()
+
+  return true
+
+}
+/*func main(){
       var test CompileHello_Case
-      ret:=build(&test)
+      tcompile:=&test
+      tbuild:= runbuild{tcompile}
+     
+      ret:= tbuild.runtest()
+      if ret == false{
+        //t.Error("not passed,expect:");
+      }
+}*/
+func Test_CompileHello_Case(t *testing.T){
+
+      var test CompileHello_Case
+      tcompile:=&test
+      tbuild:= runbuild{tcompile}
+     
+      ret:= tbuild.runtest()
       if ret == false{
         t.Error("not passed,expect:");
       }

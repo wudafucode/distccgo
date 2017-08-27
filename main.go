@@ -5,6 +5,7 @@ import (
 	"os/exec"
     "log"
 	"strings"
+	"net"
 )
 type dcc_exitcode int
 const (
@@ -156,11 +157,12 @@ func dcc_scan_args(argvs []string,poutputfile *string,pinput_file *string)dcc_ex
 	return 0
 }
 func dcc_compile_local(argvs []string,filename string)bool{
-	 cmd := exec.Command("cc",os.Args[1:]...)
+	 cmd := exec.Command("cc",argvs[0:]...)
      output,err:=cmd.CombinedOutput()
      if err!= nil{
      	
-     	log.Fatal(output,err)
+     	log.Printf("output:%s,args:%s\n",output,argvs)
+     	log.Fatal(err)
      	return false
      }
      return true
@@ -215,7 +217,7 @@ func dcc_preproc_extern(args string)string{
 }
 func dcc_cpp_maybe(argvs[] string,input_fname string,pcpp_fname *string)bool{
 	var cpp_argv []string
-	fmt.Printf("input_fame%s \n",input_fname)
+	fmt.Printf("input_fame::%s \n",input_fname)
 	if dcc_is_preprocessed(input_fname){
 		*pcpp_fname = input_fname
 		return true
@@ -226,14 +228,22 @@ func dcc_cpp_maybe(argvs[] string,input_fname string,pcpp_fname *string)bool{
     if len(*pcpp_fname) == 0{
     	log.Fatal(input_fname)
     }
-    fmt.Println("jjj")
-    log.Printf("local preprocess %s ,cpp_fname%s",cpp_argv,*pcpp_fname)
+  
+    log.Printf("local preprocess:: %s num:%d,cpp_fname::%s\n",cpp_argv,len(cpp_argv),*pcpp_fname)
+    //test_argv:={""}
     cmd := exec.Command("cc",cpp_argv[0:]...)
+    //cmd := exec.Command("ls","-al")
+
     data,err:=cmd.CombinedOutput()
      if err!= nil{
+     	//log.Printf(err)
+     	log.Printf("data:%s\n",data)
      	log.Fatal(err)
+     
      	return false
      }
+     //log.Printf("data:%s\n",data)
+     //return false
      dcc_write_file(*pcpp_fname,data)
      return true
 }
@@ -283,6 +293,7 @@ func dcc_build_somewhere(argvs []string) int{
       var outputfile string
       var input_file string
       var cpp_fanme  string
+      fmt.Println("hello")
       argvs = dcc_expand_preprocessor_options(argvs)
     
       ret := dcc_scan_args(argvs,&outputfile,&input_file)
@@ -294,28 +305,39 @@ func dcc_build_somewhere(argvs []string) int{
       dcc_cpp_maybe(argvs,input_file,&cpp_fanme)
       server_side_argv:= dcc_strip_local_args(argvs)
       dcc_compile_local(server_side_argv,outputfile)
-      fmt.Println("success",server_side_argv)
+      log.Printf("server_side_argv:%s,\n",server_side_argv)
+    
 
 
 
 
-	return 0
+	  return 0
 }
 func main(){
 
-     //test:= dcc_expand_preprocessor_options(os.Args);
     
-	 dcc_build_somewhere(os.Args)
-     
+
     
-     
+     dcc_build_somewhere(os.Args)
      return 
-     cmd := exec.Command("ls","-l aa")
-     out,err:=cmd.CombinedOutput()
+	 server := "127.0.0.1:8000"
+	 tcpaddr,err := net.ResolveTCPAddr("tcp4",server)
+	 if err!= nil{
+	 	fmt.Printf("error:%s",err.Error())
+	 	return 
+	 }
+     conn,err:= net.DialTCP("tcp",nil,tcpaddr)
      if err!= nil{
-     	fmt.Println(err)
+     	fmt.Printf("errpr:%s",err.Error())
+     	return 
      }
-
-     fmt.Println(string(out))
-
+     words := "hello world"
+     conn.Write([]byte(words))
+     var arg string
+     for i:=0;i<len(os.Args);i++{
+     	 arg = arg + os.Args[i] + " "
+     }
+     conn.Write([]byte(arg))
+     return 
+   
 }
