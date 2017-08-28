@@ -6,6 +6,7 @@ import (
     "log"
 	"strings"
 	"net"
+	//"encoding/json"
 )
 type dcc_exitcode int
 const (
@@ -313,13 +314,18 @@ func dcc_build_somewhere(argvs []string) int{
 
 	  return 0
 }
-func main(){
+type ServerArg struct{
+     Server_side_argv string   `json:"server_side_argv"`
+     Cpp_fname        string   `json:"cpp_fname"`
+     File_length       int     `json:"file_length"`
+}
+func maint(){
+     
+
 
     
-
-    
-     dcc_build_somewhere(os.Args)
-     return 
+     //dcc_build_somewhere(os.Args)
+     //return 
 	 server := "127.0.0.1:8000"
 	 tcpaddr,err := net.ResolveTCPAddr("tcp4",server)
 	 if err!= nil{
@@ -331,13 +337,16 @@ func main(){
      	fmt.Printf("errpr:%s",err.Error())
      	return 
      }
-     words := "hello world"
-     conn.Write([]byte(words))
-     var arg string
-     for i:=0;i<len(os.Args);i++{
-     	 arg = arg + os.Args[i] + " "
-     }
-     conn.Write([]byte(arg))
+    
+     byt := []byte(`{"server_side_argv":"gcc -c","cpp_fname":"hello.c","file_length":12}`)
+    
+     //fmt.Printf("1:%s,2:%s,3:%d",res.Server_side_argv,res.Cpp_fname,res.Filelength)
+     
+     n,_:=conn.Write(byt)
+     fmt.Printf("1:%d",n)
+    
+     /*如果client端未关闭，server端怎么处理*/
+     conn.Close()
      return 
    
 }
