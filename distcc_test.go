@@ -4,6 +4,8 @@ import (
         "strings"
         //"fmt"
         //"time"
+        "fmt"
+        "os/exec"
         "os"
 )
 
@@ -165,6 +167,7 @@ type Compile interface{
 
      compileCmd()string
      linkCmd()string
+     //checkBuiltProgram()bool
 }
 type runbuild struct{
      tcomplie Compile
@@ -203,15 +206,35 @@ func (this *runbuild)compile(){
   cmd:=strings.Split(this.tcomplie.compileCmd()," ")
   dcc_build_somewhere(cmd)
   return 
+}
+func (this *runbuild)checkBuiltProgram()bool{
+
+  cmd := exec.Command("./testtmp")
+  output,err:=cmd.CombinedOutput()
+  if err != nil{
+    return false
+  }
+  testresult:= "hello world\n"
+  if string(output) != testresult{
+    fmt.Printf("%s,runlen:%d,resultlen:%d,",string(output),len(string(output)),len(testresult))
+    //t.Log()
+   return false
+  }
+  return true
 
 }
 func (this *runbuild)runtest()bool{
-  this.createSource()
+   testdir:="./test"
+   os.Mkdir(testdir,0777)
+   os.Chdir(testdir)
+   this.createSource()
    //time.Sleep(time.Duration(5)*time.Second)
    this.compile()
    this.link()
-
-  return true
+   ret:=this.checkBuiltProgram()
+   os.Chdir("../")
+   os.RemoveAll(testdir)
+   return ret
 
 }
 /*func main(){
@@ -236,3 +259,5 @@ func Test_CompileHello_Case(t *testing.T){
       }
 
 }
+//todo 
+//ParseMask_Case
