@@ -6,7 +6,8 @@ import (
     "log"
 	"strings"
 	"net"
-	//"encoding/json"
+	"time"
+	"encoding/json"
 )
 type dcc_exitcode int
 const (
@@ -289,6 +290,75 @@ func dcc_strip_local_args(argvs []string)[]string{
 
 
 }
+func dcc_remote_connect()(net.Conn,error){
+   
+	 server := "127.0.0.1:8000"
+	 tcpaddr,err := net.ResolveTCPAddr("tcp4",server)
+	 if err!= nil{
+	 	fmt.Printf("error:%s",err.Error())
+	 	return nil,err
+	 }
+	 conn,err:= net.DialTCP("tcp",nil,tcpaddr)
+	 if err!= nil{
+	 	fmt.Printf("errpr:%s",err.Error())
+	 	return nil,err
+	 }
+     return conn,nil
+}
+func dcc_wait_response(conn net.Conn)(string,bool){
+	conn.SetReadDeadline(time.Now().Add(time.Second*3))
+
+    var res Response
+    buffer := make([]byte,2048)
+    n,err:=conn.Read(buffer)
+	if err!= nil{
+		log.Fatal(err)
+		return "",false
+	}
+    readbuffer:=buffer[:n]
+	if err:=json.Unmarshal(readbuffer,&res); err!= nil{
+		log.Printf("fail:%d,read:%d",n,len(buffer))
+		log.Fatal(err)
+ 		return "",false
+    }
+    if res.Ret == false{
+    	return "",false
+    }
+    conn.SetReadDeadline(time.Time{})
+    return res.result,true
+}
+func dcc_send_argv(server_side_argv []string,outputfile string){
+	tmparg:=ServerArg{}
+	if len(server_side_argv) == 0{
+		return 
+	}
+	var i int
+	for i=0;i<len(server_side_argv)-1;i++{
+		tmparg.Server_side_argv += server_side_argv[i] + " "
+	}
+    tmparg.Server_side_argv += server_side_argv[i]
+    conn,err:=dcc_remote_connect()
+    if err != nil{
+    	return 
+    }
+    //defer conn.Close()
+    byt,err:=json.Marshal(tmparg)
+    if err != nil{
+    	log.Fatal(err)
+    	return 
+    }
+    _,err=conn.Write(byt)
+    if err != nil{
+    	log.Fatal(err)
+    	return 
+    }
+    _,ret:=dcc_wait_response(conn)
+    if ret == false{
+    	return 
+    }
+   conn.Close()
+
+}
 func dcc_build_somewhere(argvs []string) int{
       
       var outputfile string
@@ -314,39 +384,27 @@ func dcc_build_somewhere(argvs []string) int{
 
 	  return 0
 }
+type Response struct{
+	 Ret      bool    `json:"ret"`
+	 result   string  `json:"result"`
+}
 type ServerArg struct{
      Server_side_argv string   `json:"server_side_argv"`
      Cpp_fname        string   `json:"cpp_fname"`
      File_length       int     `json:"file_length"`
 }
-func maint(){
+func main(){
      
 
 
     
      //dcc_build_somewhere(os.Args)
      //return 
-	 server := "127.0.0.1:8000"
-	 tcpaddr,err := net.ResolveTCPAddr("tcp4",server)
-	 if err!= nil{
-	 	fmt.Printf("error:%s",err.Error())
-	 	return 
-	 }
-     conn,err:= net.DialTCP("tcp",nil,tcpaddr)
-     if err!= nil{
-     	fmt.Printf("errpr:%s",err.Error())
-     	return 
-     }
-    
-     byt := []byte(`{"server_side_argv":"gcc -c","cpp_fname":"hello.c","file_length":12}`)
-    
-     //fmt.Printf("1:%s,2:%s,3:%d",res.Server_side_argv,res.Cpp_fname,res.Filelength)
+	 teststring :=[]string{"gcc","hello"}
+	 dcc_send_argv(teststring,"1.cpp")
      
-     n,_:=conn.Write(byt)
-     fmt.Printf("1:%d",n)
     
-     /*如果client端未关闭，server端怎么处理*/
-     conn.Close()
+   
      return 
    
 }
