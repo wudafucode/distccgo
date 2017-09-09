@@ -341,12 +341,13 @@ func dcc_send_argv(server_side_argv []string,outputfile string){
     if err != nil{
     	return 
     }
-    //defer conn.Close()
-    byt,err:=json.Marshal(tmparg)
-    if err != nil{
-    	log.Fatal(err)
-    	return 
-    }
+    defer conn.Close()
+    filedata:=[]byte("hello")
+    tmparg.Cpp_fname = "hello.c"
+    tmparg.File_length = len(filedata)
+   
+    byt,_:=json.Marshal(tmparg)
+   
     _,err=conn.Write(byt)
     if err != nil{
     	log.Fatal(err)
@@ -356,7 +357,8 @@ func dcc_send_argv(server_side_argv []string,outputfile string){
     if ret == false{
     	return 
     }
-   conn.Close()
+    
+    conn.Write(filedata)
 
 }
 func dcc_build_somewhere(argvs []string) int{
