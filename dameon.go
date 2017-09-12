@@ -2,14 +2,14 @@ package main
 import (
 	"fmt"
 	"net"
-	"os"
+	//"os"
     "log"
 	//"strings"
 	"encoding/json"
 )
 
 
-func maint(){
+func main(){
 	netlisten,err:= net.Listen("tcp","localhost:8000")
 	if err != nil{
 		//fmt.Printf(os.Stderr,"err:%s",err.Error());
@@ -27,33 +27,7 @@ func maint(){
 
 	}
 }
-func CreateFile(conn net.Conn,filename string,filelength int)bool{
-     
-	 buffer := make([]byte,2048)
 
-     f,err := os.OpenFile(filename,os.O_CREATE|os.O_RDWR,0777)
-     if err != nil{
-        return false
-     }
-     defer f.Close()
-	for{
-		n,err:=conn.Read(buffer)
-		if err!= nil{
-			log.Println(conn.RemoteAddr().String(),"connection err",err)
-			return false
-		}
-		 _,err =f.Write(buffer[0:n])
-        if err!= nil{
-           return false
-        }
-        filelength= filelength - n
-        if filelength<=0{
-        	break
-        }
-	}
-
-	return true
-}
 func handleConnection(conn net.Conn){
 	defer conn.Close()
 	buffer := make([]byte,2048)
@@ -73,12 +47,10 @@ func handleConnection(conn net.Conn){
         }
         
         log.Printf("1:%s,2:%s,3:%d,4:%d",server_arg.Server_side_argv,server_arg.Cpp_fname,server_arg.File_length,n)
-        tres:= Response{};
-        tres.Ret = true;
-        byt,_:=json.Marshal(tres)
-        conn.Write(byt)
+        dcc_response(conn)
         
-        CreateFile(conn,server_arg.Cpp_fname,server_arg.File_length)
+        dcc_r_file(server_arg.Cpp_fname,conn,server_arg.File_length)
+        dcc_response(conn)
 
 		//log.Println(conn.RemoteAddr().String(),"receive data string:\n",string(buffer[:n]))
 	}

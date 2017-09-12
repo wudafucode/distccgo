@@ -8,6 +8,7 @@ import (
 	"net"
 	"time"
 	"encoding/json"
+	"io/ioutil"
 )
 type dcc_exitcode int
 const (
@@ -327,6 +328,67 @@ func dcc_wait_response(conn net.Conn)(string,bool){
     conn.SetReadDeadline(time.Time{})
     return res.result,true
 }
+func dcc_response(conn net.Conn)bool{
+	tres:= Response{};
+    tres.Ret = true;
+    byt,_:=json.Marshal(tres)
+    conn.Write(byt)
+    return true
+}
+func dcc_get_filelength(filename string)(int,error){
+	 fileinfo,err:= os.Stat(filename)
+	 if err != nil{
+	 	log.Fatal(err)
+	 	return 0,err
+	 }
+     return int(fileinfo.Size()),nil
+}
+func dcc_r_file(filename string,conn net.Conn,filelength int)bool{
+	 buffer := make([]byte,2048)
+
+     f,err := os.OpenFile(filename,os.O_CREATE|os.O_RDWR,0777)
+     if err != nil{
+        return false
+     }
+     defer f.Close()
+	for{
+		n,err:=conn.Read(buffer)
+		if err!= nil{
+			log.Println(conn.RemoteAddr().String(),"connection err",err)
+			return false
+		}
+		 _,err =f.Write(buffer[0:n])
+        if err!= nil{
+           return false
+        }
+        filelength= filelength - n
+        if filelength<=0{
+        	break
+        }
+	}
+
+	return true
+
+}
+func dcc_x_many_files(filename string,conn net.Conn)bool{
+
+	 file,err:=os.Open(filename)
+	 if err != nil{
+	 	log.Fatal(err)
+	 	return false
+	 }
+
+     data,err := ioutil.ReadAll(file)
+     if err != nil{
+        return false
+     }
+	 _,err=conn.Write(data)
+	 if err!= nil{
+		 log.Fatal(err)
+		 return false
+	 }  
+	 return true
+}
 func dcc_send_argv(server_side_argv []string,outputfile string){
 	tmparg:=ServerArg{}
 	if len(server_side_argv) == 0{
@@ -344,7 +406,8 @@ func dcc_send_argv(server_side_argv []string,outputfile string){
     defer conn.Close()
     filedata:=[]byte("hello")
     tmparg.Cpp_fname = "hello.c"
-    tmparg.File_length = len(filedata)
+
+    tmparg.File_length,_ = dcc_get_filelength(tmparg.Cpp_fname)
    
     byt,_:=json.Marshal(tmparg)
    
@@ -357,7 +420,11 @@ func dcc_send_argv(server_side_argv []string,outputfile string){
     if ret == false{
     	return 
     }
-    
+    dcc_x_many_files(tmparg.Cpp_fname,conn)
+    _,ret=dcc_wait_response(conn)
+    if ret == false{
+    	return 
+    }
     conn.Write(filedata)
 
 }
@@ -395,7 +462,7 @@ type ServerArg struct{
      Cpp_fname        string   `json:"cpp_fname"`
      File_length       int     `json:"file_length"`
 }
-func main(){
+func maint(){
      
 
 
