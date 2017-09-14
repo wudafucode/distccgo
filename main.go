@@ -218,24 +218,34 @@ func dcc_preproc_extern(args string)string{
     }
     return ""
 }
-func dcc_cpp_maybe(argvs[] string,input_fname string,pcpp_fname *string)bool{
+func dcc_cpp_maybe(argvs[] string,input_fname string,pcpp_fname *string)([]byte,bool){
 	var cpp_argv []string
 	fmt.Printf("input_fame::%s \n",input_fname)
 	if dcc_is_preprocessed(input_fname){
 		*pcpp_fname = input_fname
-		return true
+		file,err:=os.Open(input_fname)
+	    if err != nil{
+	 	   log.Fatal(err)
+	 	    return nil,false
+	    }
+        data,err := ioutil.ReadAll(file)
+        if err != nil{
+         return nil,false
+        }
+		return data,true
 	}
     cpp_argv = dcc_strip_dasho(argvs)
     dcc_set_action_opt(cpp_argv)
     *pcpp_fname = dcc_preproc_extern(input_fname)
     if len(*pcpp_fname) == 0{
     	log.Fatal(input_fname)
+    	return nil,false
     }
   
     log.Printf("local preprocess:: %s num:%d,cpp_fname::%s\n",cpp_argv,len(cpp_argv),*pcpp_fname)
-    //test_argv:={""}
+    
     cmd := exec.Command("cc",cpp_argv[0:]...)
-    //cmd := exec.Command("ls","-al")
+  
 
     data,err:=cmd.CombinedOutput()
      if err!= nil{
@@ -243,12 +253,10 @@ func dcc_cpp_maybe(argvs[] string,input_fname string,pcpp_fname *string)bool{
      	log.Printf("data:%s\n",data)
      	log.Fatal(err)
      
-     	return false
+     	return nil,false
      }
-     //log.Printf("data:%s\n",data)
-     //return false
-     dcc_write_file(*pcpp_fname,data)
-     return true
+     //dcc_write_file(*pcpp_fname,data)
+     return data,true
 }
 func dcc_write_file(fname string,data []byte){
 	f,err := os.Create(fname)
@@ -290,6 +298,17 @@ func dcc_strip_local_args(argvs []string)[]string{
 	return result
 
 
+}
+func dcc_set_input(argvs []string,fname string)int{
+	for i:=0;i<len(argvs);i++{
+        if dcc_is_source(argvs[i]){
+        	argvs[i] = fname
+        	return 0
+
+        }
+	}
+
+	return 0
 }
 func dcc_remote_connect()(net.Conn,error){
    
@@ -389,7 +408,7 @@ func dcc_x_many_files(filename string,conn net.Conn)bool{
 	 }  
 	 return true
 }
-func dcc_send_argv(server_side_argv []string,outputfile string){
+func dcc_send_argv(server_side_argv []string,outputfile string,data []byte){
 	tmparg:=ServerArg{}
 	if len(server_side_argv) == 0{
 		return 
@@ -404,11 +423,12 @@ func dcc_send_argv(server_side_argv []string,outputfile string){
     	return 
     }
     defer conn.Close()
-    filedata:=[]byte("hello")
-    tmparg.Cpp_fname = "hello.c"
+ 
+    tmparg.Cpp_fname = outputfile
 
-    tmparg.File_length,_ = dcc_get_filelength(tmparg.Cpp_fname)
-   
+    //tmparg.File_length,_ = dcc_get_filelength(tmparg.Cpp_fname)
+    tmparg.File_length=len(data)
+
     byt,_:=json.Marshal(tmparg)
    
     _,err=conn.Write(byt)
@@ -420,12 +440,16 @@ func dcc_send_argv(server_side_argv []string,outputfile string){
     if ret == false{
     	return 
     }
-    dcc_x_many_files(tmparg.Cpp_fname,conn)
+    _,err=conn.Write(data)
+	 if err!= nil{
+		 log.Fatal(err)
+		 return 
+	}  
+    //dcc_x_many_files(tmparg.Cpp_fname,conn)
     _,ret=dcc_wait_response(conn)
     if ret == false{
     	return 
     }
-    conn.Write(filedata)
 
 }
 func dcc_build_somewhere(argvs []string) int{
@@ -433,7 +457,7 @@ func dcc_build_somewhere(argvs []string) int{
       var outputfile string
       var input_file string
       var cpp_fanme  string
-      fmt.Println("hello")
+      
       argvs = dcc_expand_preprocessor_options(argvs)
     
       ret := dcc_scan_args(argvs,&outputfile,&input_file)
@@ -442,15 +466,17 @@ func dcc_build_somewhere(argvs []string) int{
       	 dcc_compile_local(argvs,outputfile)
       	 return 0
       }
-      dcc_cpp_maybe(argvs,input_file,&cpp_fanme)
+      fmt.Println(input_file)
+      data,flag:=dcc_cpp_maybe(argvs,input_file,&cpp_fanme)
+      if flag == false{
+      	return 1
+      }
+
       server_side_argv:= dcc_strip_local_args(argvs)
-      dcc_compile_local(server_side_argv,outputfile)
+      dcc_send_argv(server_side_argv,cpp_fanme,data)
+      //dcc_compile_local(server_side_argv,outputfile)
       log.Printf("server_side_argv:%s,\n",server_side_argv)
     
-
-
-
-
 	  return 0
 }
 type Response struct{
@@ -467,10 +493,10 @@ func maint(){
 
 
     
-     //dcc_build_somewhere(os.Args)
-     //return 
-	 teststring :=[]string{"gcc","hello"}
-	 dcc_send_argv(teststring,"1.cpp")
+     dcc_build_somewhere(os.Args)
+     return 
+	// teststring :=[]string{"gcc","hello"}
+	// dcc_send_argv(teststring,"1.cpp",[]byte{"123"})
      
     
    

@@ -4,7 +4,7 @@ import (
 	"net"
 	//"os"
     "log"
-	//"strings"
+	"strings"
 	"encoding/json"
 )
 
@@ -31,7 +31,8 @@ func main(){
 func handleConnection(conn net.Conn){
 	defer conn.Close()
 	buffer := make([]byte,2048)
-
+    var outputfile string
+    var input_file string
 	server_arg :=ServerArg{}
 	for{
 		n,err:=conn.Read(buffer)
@@ -51,7 +52,18 @@ func handleConnection(conn net.Conn){
         
         dcc_r_file(server_arg.Cpp_fname,conn,server_arg.File_length)
         dcc_response(conn)
+        
+        argv:= strings.Split(server_arg.Server_side_argv," ")  
+        ret := dcc_scan_args(argv,&outputfile,&input_file)
+        if ret == EXIT_DISTCC_FAILED{
 
+      		log.Printf("error:%s",server_arg.Server_side_argv)
+      		return 
+        }
+        dcc_set_input(argv,server_arg.Cpp_fname)
+        dcc_compile_local(argv,outputfile)
+
+        return 
 		//log.Println(conn.RemoteAddr().String(),"receive data string:\n",string(buffer[:n]))
 	}
 
