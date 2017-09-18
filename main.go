@@ -408,10 +408,10 @@ func dcc_x_many_files(filename string,conn net.Conn)bool{
 	 }  
 	 return true
 }
-func dcc_send_argv(server_side_argv []string,outputfile string,data []byte){
+func dcc_send_argv(server_side_argv []string,outputfile string,data []byte)net.Conn{
 	tmparg:=ServerArg{}
 	if len(server_side_argv) == 0{
-		return 
+		return nil
 	}
 	var i int
 	for i=0;i<len(server_side_argv)-1;i++{
@@ -420,9 +420,9 @@ func dcc_send_argv(server_side_argv []string,outputfile string,data []byte){
     tmparg.Server_side_argv += server_side_argv[i]
     conn,err:=dcc_remote_connect()
     if err != nil{
-    	return 
+    	return nil
     }
-    defer conn.Close()
+    //defer conn.Close()
  
     tmparg.Cpp_fname = outputfile
 
@@ -434,23 +434,43 @@ func dcc_send_argv(server_side_argv []string,outputfile string,data []byte){
     _,err=conn.Write(byt)
     if err != nil{
     	log.Fatal(err)
-    	return 
+    	return nil
     }
     _,ret:=dcc_wait_response(conn)
     if ret == false{
-    	return 
+    	return nil
     }
     _,err=conn.Write(data)
 	 if err!= nil{
 		 log.Fatal(err)
-		 return 
+		 return nil
 	}  
     //dcc_x_many_files(tmparg.Cpp_fname,conn)
     _,ret=dcc_wait_response(conn)
     if ret == false{
-    	return 
+    	return nil
     }
+    return conn
 
+}
+func dcc_recv_output(conn net.Conn){
+	buffer := make([]byte,2048)
+	n,err:=conn.Read(buffer)
+		if err!= nil{
+			log.Println(conn.RemoteAddr().String(),"connection err",err)
+			return 
+	}
+	readbuffer:=buffer[:n]
+	tmpout := OutputArg{}
+	if err:=json.Unmarshal(readbuffer,&tmpout); err!= nil{
+		log.Printf("fail:%d,read:%d",n,len(buffer))
+		log.Fatal(err)
+ 		return 
+    }
+    log.Printf("1:%s,2:%s",tmpout.Cpp_fname,tmpout.File_length)
+    dcc_response(conn)
+    dcc_r_file(tmpout.Cpp_fname,conn,tmpout.File_length)
+    dcc_response(conn)
 }
 func dcc_build_somewhere(argvs []string) int{
       
@@ -473,9 +493,11 @@ func dcc_build_somewhere(argvs []string) int{
       }
 
       server_side_argv:= dcc_strip_local_args(argvs)
-      dcc_send_argv(server_side_argv,cpp_fanme,data)
+      conn:=dcc_send_argv(server_side_argv,cpp_fanme,data)
+
       //dcc_compile_local(server_side_argv,outputfile)
       log.Printf("server_side_argv:%s,\n",server_side_argv)
+      dcc_recv_output(conn)
     
 	  return 0
 }
@@ -485,6 +507,10 @@ type Response struct{
 }
 type ServerArg struct{
      Server_side_argv string   `json:"server_side_argv"`
+     Cpp_fname        string   `json:"cpp_fname"`
+     File_length       int     `json:"file_length"`
+}
+type OutputArg struct{
      Cpp_fname        string   `json:"cpp_fname"`
      File_length       int     `json:"file_length"`
 }

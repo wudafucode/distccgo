@@ -62,6 +62,23 @@ func handleConnection(conn net.Conn){
         }
         dcc_set_input(argv,server_arg.Cpp_fname)
         dcc_compile_local(argv,outputfile)
+        
+        
+        tmpout := OutputArg{}
+        tmpout.File_length,_ = dcc_get_filelength(outputfile)
+        tmpout.Cpp_fname  = outputfile
+        byt,_:=json.Marshal(tmpout)
+        log.Printf("output:1:%s,2:%d,3:%d",tmpout.Cpp_fname,tmpout.File_length,len(byt))
+	    _,err=conn.Write(byt)
+	    if err != nil{
+	    	log.Fatal(err)
+	    	return 
+	    }
+	    dcc_wait_response(conn)
+        dcc_x_many_files(outputfile,conn)
+        dcc_wait_response(conn)
+	    
+
 
         return 
 		//log.Println(conn.RemoteAddr().String(),"receive data string:\n",string(buffer[:n]))
