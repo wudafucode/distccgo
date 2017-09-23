@@ -2,14 +2,51 @@ package main
 import (
 	"fmt"
 	"net"
-	//"os"
+	"time"
+	"os/exec"
     "log"
 	"strings"
 	"encoding/json"
+	"regexp"
+	"strconv"
 )
+func GetLoad(loadstr string)(float64,float64,float64){
+     reg := regexp.MustCompile(`\d+(\.\d+)`)
 
+    
+     loadbuf:=reg.FindAllString(loadstr,-1)
+     if len(loadbuf) != 3{
+     	return 0,0,0
+     }
+     ldavg1,_  := strconv.ParseFloat(loadbuf[0],32)
+     ldavg5,_  := strconv.ParseFloat(loadbuf[1],32)
+     ldavg10,_ := strconv.ParseFloat(loadbuf[2],32)
+     return ldavg1,ldavg5,ldavg10
+}
+func loadavg(){
+   for{
+  	 cmd := exec.Command("uptime")
+     output,err:=cmd.CombinedOutput()
+     if err!= nil{
+     	log.Printf("output:%s,args:%s\n",output)
+     	log.Fatal(err)   
+     }
+     ldavg1,ldavg5,ldavg10:=GetLoad(string(output))
+     fmt.Printf("err:%s",string(output));
+     fmt.Printf("1:%6.3f,2:%6.3f,3:%6.3f\r\n",ldavg1,ldavg5,ldavg10);
+    
+
+  	 time.Sleep(time.Duration(10)*time.Second)
+  }
+
+
+}
 
 func main(){
+
+
+    go loadavg()
+
 	netlisten,err:= net.Listen("tcp","localhost:8000")
 	if err != nil{
 		//fmt.Printf(os.Stderr,"err:%s",err.Error());
