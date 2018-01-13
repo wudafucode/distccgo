@@ -312,7 +312,7 @@ func dcc_set_input(argvs []string,fname string)int{
 }
 func dcc_remote_connect()(net.Conn,error){
    
-	 server := "127.0.0.1:8000"
+	 server := dcc_pick_host_from_list_and_lock_it()
 	 tcpaddr,err := net.ResolveTCPAddr("tcp4",server)
 	 if err!= nil{
 	 	fmt.Printf("error:%s",err.Error())
@@ -514,11 +514,31 @@ type OutputArg struct{
      Cpp_fname        string   `json:"cpp_fname"`
      File_length       int     `json:"file_length"`
 }
-func maint(){
+func dcc_pick_host_from_list_and_lock_it()string {
+	var distccgo_hosts string
+	distccgo_hosts = os.Getenv("DISTCCGO_HOSTS")
+	ip_hosts := strings.Split(distccgo_hosts," ")
+	if len(ip_hosts) == 0{
+		log.Printf("there is no useful distccgo_hosts")
+	}
+	return  ip_hosts[0]+":8000"
+}
+func test(){
+	var distccgo_hosts string
+	distccgo_hosts = os.Getenv("DISTCCGO_HOSTS")
+	ip_hosts := strings.Split(distccgo_hosts," ")
+	for i:=0;i<len(ip_hosts);i++{
+		tmp:= ip_hosts[i]+":8000"
+		fmt.Println(tmp)
+    }
+	fmt.Println("hello")
+	//fmt.Println(distccgo_hosts)
+}
+func main(){
      
 
-
-    
+     //test()
+     //return 
      dcc_build_somewhere(os.Args)
      return 
 	// teststring :=[]string{"gcc","hello"}
