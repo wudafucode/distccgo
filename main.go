@@ -9,6 +9,7 @@ import (
 	"time"
 	"encoding/json"
 	"io/ioutil"
+    "math/rand"
 )
 type dcc_exitcode int
 const (
@@ -97,6 +98,8 @@ func dcc_scan_args(argvs []string,poutputfile *string,pinput_file *string)dcc_ex
 			if argvs[i] == "-E" {
 	 	          return EXIT_DISTCC_FAILED
 	        }else if argvs[i]  == "-MD" || argvs[i]  == "-MMD"{
+
+	        }else if argvs[i]  == "-MG" || argvs[i]  == "-MP"{
 
 	        }else if argvs[i]  == "-MF" || argvs[i]  == "-MT" || argvs[i]  =="-MQ" {
 	        	  i++
@@ -220,7 +223,7 @@ func dcc_preproc_extern(args string)string{
 }
 func dcc_cpp_maybe(argvs[] string,input_fname string,pcpp_fname *string)([]byte,bool){
 	var cpp_argv []string
-	fmt.Printf("input_fame::%s \n",input_fname)
+	log.Printf("input_fame::%s \n",input_fname)
 	if dcc_is_preprocessed(input_fname){
 		*pcpp_fname = input_fname
 		file,err:=os.Open(input_fname)
@@ -367,6 +370,8 @@ func dcc_r_file(filename string,conn net.Conn,filelength int)bool{
 
      f,err := os.OpenFile(filename,os.O_CREATE|os.O_RDWR,0777)
      if err != nil{
+     	//log.Printf("open file:%s",filename)
+     	log.Println(err)
         return false
      }
      defer f.Close()
@@ -457,7 +462,7 @@ func dcc_recv_output(conn net.Conn){
 	buffer := make([]byte,2048)
 	n,err:=conn.Read(buffer)
 		if err!= nil{
-			log.Println(conn.RemoteAddr().String(),"connection err",err)
+			log.Printf(conn.RemoteAddr().String(),"connection err",err)
 			return 
 	}
 	readbuffer:=buffer[:n]
@@ -482,11 +487,10 @@ func dcc_build_somewhere(argvs []string) int{
     
       ret := dcc_scan_args(argvs,&outputfile,&input_file)
       if ret == EXIT_DISTCC_FAILED{
-      	 fmt.Println("local")
+      	 log.Printf("local")
       	 dcc_compile_local(argvs,outputfile)
       	 return 0
       }
-      fmt.Println(input_file)
       data,flag:=dcc_cpp_maybe(argvs,input_file,&cpp_fanme)
       if flag == false{
       	return 1
@@ -524,21 +528,43 @@ func dcc_pick_host_from_list_and_lock_it()string {
 	return  ip_hosts[0]+":8000"
 }
 func test(){
-	var distccgo_hosts string
-	distccgo_hosts = os.Getenv("DISTCCGO_HOSTS")
-	ip_hosts := strings.Split(distccgo_hosts," ")
-	for i:=0;i<len(ip_hosts);i++{
-		tmp:= ip_hosts[i]+":8000"
-		fmt.Println(tmp)
+	buffer := make([]byte,2048)
+	conn,err:=dcc_remote_connect()
+    if err != nil{
+    	return 
     }
-	fmt.Println("hello")
-	//fmt.Println(distccgo_hosts)
-}
-func main(){
-     
+    for{
+         log.Printf("write")
+         conn.Write([]byte("Hello from client"))
 
-     //test()
-     //return 
+         second:=rand.Intn(10)
+         time.Sleep(time.Duration(second)*time.Second)
+         n,err:=conn.Read(buffer)
+         if err!= nil{
+        	continue
+         }
+         log.Printf("client read:%d",n)
+
+
+     }
+
+}
+func test2(){
+	var outputfile string
+    var input_file string
+    tmp:= "-MMD -MP -pthread -fPIC -DCAFFE_VERSION=1.0.0 -DNDEBUG -O2 -DUSE_OPENCV -DUSE_LEVELDB -DUSE_LMDB -DCPU_ONLY -I/usr/include/python2.7 -I/usr/lib/python2.7/dist-packages/numpy/core/include -I/usr/local/include -I/usr/include/hdf5/serial -I.build_release/src -I./src -I./include -Wall -Wno-sign-compare -c -o .build_release/src/caffe/layers/bias_layer.o"
+    argvs :=  strings.Split(tmp," ")
+    ret := dcc_scan_args(argvs,&outputfile,&input_file)
+    if ret == EXIT_DISTCC_FAILED{
+    		fmt.Println("faile")
+    }
+    fmt.Println("1234")
+}
+
+func maint(){
+     
+     log.SetFlags(log.Ldate|log.Ltime |log.LUTC|log.Lshortfile)
+   
      dcc_build_somewhere(os.Args)
      return 
 	// teststring :=[]string{"gcc","hello"}
