@@ -9,7 +9,8 @@ import (
 	"encoding/json"
 	"regexp"
 	"strconv"
-	//"flag"
+    //"math/rand"
+	"flag"
     //"os"
 )
 func GetLoad(loadstr string)(float64,float64,float64){
@@ -25,7 +26,34 @@ func GetLoad(loadstr string)(float64,float64,float64){
      ldavg10,_ := strconv.ParseFloat(loadbuf[2],32)
      return ldavg1,ldavg5,ldavg10
 }
+func senddata(balanceserver  string,ldavg1 float64,ldavg5 float64,ldavg10 float64){
+
+    tcpaddr,err := net.ResolveTCPAddr("tcp4",balanceserver)
+    if err!= nil{
+        log.Printf("error:%s",err.Error())
+        return 
+    }
+    conn,err:= net.DialTCP("tcp",nil,tcpaddr)
+    if err!= nil{
+        log.Printf("errpr:%s",err.Error())
+        return 
+    }
+    tmparg:=CpuArg{}
+    tmparg.Ldavg1 = ldavg1
+    tmparg.Ldavg5 = ldavg5
+    tmparg.Ldavg10 = ldavg10
+
+    byt,_:=json.Marshal(tmparg)
+
+     _,err=conn.Write(byt)
+     if err!= nil{
+         log.Fatal(err)
+         return 
+     }  
+
+}
 func loadavg(balanceserver  string){
+    
    for{
   	 cmd := exec.Command("uptime")
      output,err:=cmd.CombinedOutput()
@@ -34,9 +62,9 @@ func loadavg(balanceserver  string){
      	log.Fatal(err)   
      }
      ldavg1,ldavg5,ldavg10:=GetLoad(string(output))
-     fmt.Printf("err:%s",string(output));
-     fmt.Printf("1:%6.3f,2:%6.3f,3:%6.3f\r\n",ldavg1,ldavg5,ldavg10);
-    
+     log.Printf("err:%s",string(output));
+     log.Printf("1:%6.3f,2:%6.3f,3:%6.3f\r\n",ldavg1,ldavg5,ldavg10);
+     senddata(balanceserver,ldavg1,ldavg5,ldavg10)
   	 time.Sleep(time.Duration(10)*time.Second)
   }
 
@@ -46,39 +74,38 @@ func loadbalance(){
 
 
 }
-func test3(){
-    filename :="1.cpp"
-    buf:= strings.Split(filename,"/")
-    fmt.Println(buf[len(buf)-1])
-    return 
-    
-    
-}
+
 func main(){
-    //test3()
-    //return 
+   
 	log.SetFlags(log.Ldate|log.Ltime |log.LUTC |log.Lshortfile)
-    /*serverip:= flag.String("s","","serverip")
+    serverip:= flag.String("s","","serverip")
+    controler:= flag.Bool("c",false,"controler")
+    localip:=flag.String("l","","localip")
+
     flag.Parse()
    
-    if *serverip == ""{
-    	fmt.Println("this way")
+    if *serverip == "" || *localip == ""{
+        log.Printf("serverip:%s,localip:%s",*serverip,*localip)
+        return
+    }
+    if *controler == true{
         go loadbalance()
-    }else{
-    	addr:= net.ParseIP(*serverip)
-	    if addr == nil{
-	    	fmt.Println("invalid address")
-	    	return 
-	    }
-	    balanceserver:= *serverip +":8001"
-    	go loadavg(balanceserver)
-    }*/
-    
+    }
 
-	netlisten,err:= net.Listen("tcp","localhost:8000")
+ 
+	addr:= net.ParseIP(*serverip)
+    if addr == nil{
+        log.Printf("invalid ip address")
+    	return 
+    }
+    balanceserver:= *serverip +":8001"
+	go loadavg(balanceserver)
+    
+    
+    localinfo:= *localip + ":8000"
+	netlisten,err:= net.Listen("tcp",localinfo)
 	if err != nil{
-		//fmt.Printf(os.Stderr,"err:%s",err.Error());
-		//os.exit(1)
+	
 		fmt.Printf("err:%s",err.Error())
 		return
 	}

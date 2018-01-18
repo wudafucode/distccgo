@@ -518,6 +518,11 @@ type OutputArg struct{
      Cpp_fname        string   `json:"cpp_fname"`
      File_length       int     `json:"file_length"`
 }
+type CpuArg struct{
+     Ldavg1            float64   `json:"ldavg1"`
+     Ldavg5            float64   `json:"ldavg5"`
+     Ldavg10           float64   `json:"ldavg10"`
+}
 func dcc_pick_host_from_list_and_lock_it()string {
 	var distccgo_hosts string
 	distccgo_hosts = os.Getenv("DISTCCGO_HOSTS")
@@ -525,7 +530,8 @@ func dcc_pick_host_from_list_and_lock_it()string {
 	if len(ip_hosts) == 0{
 		log.Printf("there is no useful distccgo_hosts")
 	}
-	return  ip_hosts[0]+":8000"
+	index:=rand.Intn(len(ip_hosts))
+	return  ip_hosts[index]+":8000"
 }
 func test(){
 	buffer := make([]byte,2048)
@@ -549,17 +555,7 @@ func test(){
      }
 
 }
-func test2(){
-	var outputfile string
-    var input_file string
-    tmp:= "-MMD -MP -pthread -fPIC -DCAFFE_VERSION=1.0.0 -DNDEBUG -O2 -DUSE_OPENCV -DUSE_LEVELDB -DUSE_LMDB -DCPU_ONLY -I/usr/include/python2.7 -I/usr/lib/python2.7/dist-packages/numpy/core/include -I/usr/local/include -I/usr/include/hdf5/serial -I.build_release/src -I./src -I./include -Wall -Wno-sign-compare -c -o .build_release/src/caffe/layers/bias_layer.o"
-    argvs :=  strings.Split(tmp," ")
-    ret := dcc_scan_args(argvs,&outputfile,&input_file)
-    if ret == EXIT_DISTCC_FAILED{
-    		fmt.Println("faile")
-    }
-    fmt.Println("1234")
-}
+
 
 func maint(){
      
@@ -567,11 +563,5 @@ func maint(){
    
      dcc_build_somewhere(os.Args)
      return 
-	// teststring :=[]string{"gcc","hello"}
-	// dcc_send_argv(teststring,"1.cpp",[]byte{"123"})
-     
-    
-   
-     return 
-   
+	
 }
