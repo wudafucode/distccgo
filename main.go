@@ -522,6 +522,7 @@ type CpuArg struct{
      Ldavg1            float64   `json:"ldavg1"`
      Ldavg5            float64   `json:"ldavg5"`
      Ldavg10           float64   `json:"ldavg10"`
+     CPUNum           float64    `json:"cpunum"`
 }
 func dcc_pick_host_from_list_and_lock_it()string {
 	var distccgo_hosts string
@@ -530,7 +531,8 @@ func dcc_pick_host_from_list_and_lock_it()string {
 	if len(ip_hosts) == 0{
 		log.Printf("there is no useful distccgo_hosts")
 	}
-	index:=rand.Intn(len(ip_hosts))
+	//index:=rand.Intn(len(ip_hosts))
+	index := time.Now().Nanosecond()%len(ip_hosts)
 	return  ip_hosts[index]+":8000"
 }
 func test(){
