@@ -75,14 +75,15 @@ func loadbalance(){
 
 }
 
-func main(){
+func dameon(argvs []string){
    
 	log.SetFlags(log.Ldate|log.Ltime |log.LUTC |log.Lshortfile)
-    serverip:= flag.String("s","","serverip")
-    controler:= flag.Bool("c",false,"controler")
-    localip:=flag.String("l","","localip")
+    var dameonFlag flag.FlagSet
+    serverip:= dameonFlag.String("s","","serverip")
+    controler:= dameonFlag.Bool("c",false,"controler")
+    localip:=dameonFlag.String("l","","localip")
 
-    flag.Parse()
+    dameonFlag.Parse(argvs)
    
     if *serverip == "" || *localip == ""{
         log.Printf("serverip:%s,localip:%s",*serverip,*localip)

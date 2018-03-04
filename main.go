@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
     "math/rand"
+    "flag"
 )
 type dcc_exitcode int
 const (
@@ -557,13 +558,25 @@ func test(){
      }
 
 }
+func usage(){
+	fmt.Fprintf(os.Stderr,"Usage: %s [arguments] <data-path> \n", os.Args[0])
+}
 
-
-func maint(){
+func main(){
      
      log.SetFlags(log.Ldate|log.Ltime |log.LUTC|log.Lshortfile)
-   
-     dcc_build_somewhere(os.Args)
+     flag.Parse()
+     args := flag.Args()
+	 if len(args) < 1 {
+		usage()
+		return 
+	 }
+     if args[0] == "dameon" {
+        dameon(args[1:])
+     	return 
+     }
+     //dcc_build_somewhere(os.Args)
+     dcc_build_somewhere(args[0:])
      return 
 	
 }
