@@ -1,6 +1,6 @@
 hello:hello.o
-	distccgo hello.o -o hello
+	distccgo gcc hello.o -o hello
 hello.o:
-	distccgo -c hello.c -o hello.o	
+	distccgo gcc -c hello.c -o hello.o	
 #gcc -c hello.c -o hello.o
 	#gcc -o hello hello.o
