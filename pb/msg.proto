@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package pb;
+
+service Msg {
+  rpc SendHeartbeat(stream Heartbeat) returns (stream HeartbeatResponse) {}
+}
+
+message Heartbeat {
+   string  worknode   =1;
+   Cpuarg  arg        =2;
+}
+message Cpuarg{
+  float   Ldavg1  =1;
+  float   Ldavg5  =2;
+  float   Ldavg10 =3;
+  uint32  CPUNum  =4;
+}
+message HeartbeatResponse {
+            string leader = 1;
+  repeated string  servernode =2;
+}
