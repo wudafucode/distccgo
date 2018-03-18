@@ -119,8 +119,8 @@ func RunServer(argvs []string){
     	masternode=Soption.join
     }
     server := NewServer(path, Soption.host, Soption.port,masternode)
-  
-	log.Fatal(server.ListenAndServe(Soption.join))
+  	server.ListenAndServe(Soption.join)
+	//log.Fatal(server.ListenAndServe(Soption.join))
 }
 // Returns the connection string.
 func (s *Server) connectionString() string {
@@ -204,10 +204,10 @@ func (s *Server) ListenAndServe(leader string) error {
 
     httpS := &http.Server{Handler: s.router}
     go httpS.Serve(httpL)
-
-    if err := m.Serve(); err != nil {
+    go m.Serve()
+    /*if err := m.Serve(); err != nil {
 		log.Fatalf("master server failed to serve", err)
-	}
+	}*/
 
 	return nil
 	

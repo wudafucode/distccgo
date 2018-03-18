@@ -3,6 +3,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
     "log"
 	"strings"
 	"net"
@@ -11,11 +12,11 @@ import (
 	"io/ioutil"
     "math/rand"
     "flag"
+    "./server"
+    "./common"
+	"./worker"
 )
-type dcc_exitcode int
-const (
-	EXIT_DISTCC_FAILED  dcc_exitcode = 100+iota
-)
+
 func copy_extra_args(presultargs* []string,args string)int {
 	 splitargs := strings.Split(args,",")
 	 for i:=1;i<len(splitargs);i++{
@@ -46,29 +47,7 @@ func dcc_expand_preprocessor_options(argvs []string )[]string {
 	fmt.Println(resultargs)
     return resultargs;	
 }
-func dcc_is_source(filename string)bool {
-	splitext := strings.Split(filename,".")
-	if len(splitext) == 1{
-		return false
-	}
-	ext := splitext[1]
-	switch ext[0]{
-       case 'i':
-       	return ext == "i" || ext == "ii"
-       case 'c':
-       	return ext == "c" || ext == "cc" || ext == "cpp" || ext == "cxx" || ext == "cp" || ext=="c++"
-       case 'C':
-       	return ext == "C"
-       case 'm':
-       	return ext == "m" || ext =="mm" || ext == "mi" || ext == "mii"
-       case 'M':
-         return ext == "M"
-       default:
-          return false	
 
-	}
-
-}
 func dcc_is_preprocessed(filename string)bool {
 	splitext := strings.Split(filename,".")
 	if len(splitext) == 1{
@@ -88,92 +67,8 @@ func dcc_is_preprocessed(filename string)bool {
 
 
 }
-func dcc_scan_args(argvs []string,poutputfile *string,pinput_file *string)dcc_exitcode{
 
-    seen_opt_s:=false
-    seen_opt_c:=false
-	//var outputfile string
-	//var  input_file string
-	for i:=0;i<len(argvs);i++{
-		if strings.HasPrefix(argvs[i],"-"){
-			if argvs[i] == "-E" {
-	 	          return EXIT_DISTCC_FAILED
-	        }else if argvs[i]  == "-MD" || argvs[i]  == "-MMD"{
 
-	        }else if argvs[i]  == "-MG" || argvs[i]  == "-MP"{
-
-	        }else if argvs[i]  == "-MF" || argvs[i]  == "-MT" || argvs[i]  =="-MQ" {
-	        	  i++
-	        }else if strings.HasPrefix(argvs[i],"-MF") || strings.HasPrefix(argvs[i],"-MT") ||strings.HasPrefix(argvs[i],"-MQ") {
-	        	
-	        }else if strings.HasPrefix(argvs[i],"-M") {
-	              return EXIT_DISTCC_FAILED
-	        }else if argvs[i] == "-march=native" || argvs[i] == "-matune=native" {
-	        	   return EXIT_DISTCC_FAILED
-	        }else if strings.HasPrefix(argvs[i],"-Wa"){
-	        	     if strings.Contains(argvs[i],"-a") || strings.Contains(argvs[i],"--MD"){
-	        	     	return EXIT_DISTCC_FAILED
-	        	     }
-	        }else if strings.HasPrefix(argvs[i],"-specs="){
-	        	     return EXIT_DISTCC_FAILED
-	        }else if argvs[i] == "-S"{
-	        	    seen_opt_s = true 
-	        }else if argvs[i] == "-fprofile-arcs" || argvs[i] == "-ftest-coverage" || argvs[i] == "--coverage"{
-	        	   return EXIT_DISTCC_FAILED
-	        }else if strings.HasPrefix(argvs[i],"-frepo"){
-	        	   return EXIT_DISTCC_FAILED
-	        }else if strings.HasPrefix(argvs[i],"-x"){
-	        	   return EXIT_DISTCC_FAILED
-	        }else if strings.HasPrefix(argvs[i],"-dr"){
-	        	   return EXIT_DISTCC_FAILED
-	        }else if argvs[i] == "-c"{
-	        	   seen_opt_c = true
-	        }else if argvs[i] == "-o"{
-	        	   i++;
-	        	   if *poutputfile != ""{
-	        	   	return EXIT_DISTCC_FAILED
-	        	   }
-                   *poutputfile = argvs[i]
-	        }else if strings.HasPrefix(argvs[i],"-o"){
-	        	   if *poutputfile != ""{
-	        	   	return EXIT_DISTCC_FAILED
-	        	   }
-                   *poutputfile = strings.TrimPrefix(argvs[i],"-o")
-                   
-	        }		
-		}else {
-			 if dcc_is_source(argvs[i]){
-			 	   *pinput_file = argvs[i]
-
-			 	}else if strings.HasSuffix(argvs[i],".o") {
-
-			 		 if *poutputfile != ""{
-	        	   	 return EXIT_DISTCC_FAILED
-	        	    }
-                   *poutputfile = argvs[i]
-			 	}
-		}	
-	}
-	if (!seen_opt_c && !seen_opt_s){
-		return EXIT_DISTCC_FAILED
-	}
-	if *pinput_file == ""{
-	   return EXIT_DISTCC_FAILED
-	}
-
-	return 0
-}
-func dcc_compile_local(argvs []string,filename string)bool{
-	 cmd := exec.Command("cc",argvs[0:]...)
-     output,err:=cmd.CombinedOutput()
-     if err!= nil{
-     	
-     	log.Printf("output:%s,args:%s\n",output,argvs)
-     	log.Fatal(err)
-     	return false
-     }
-     return true
-}
 func dcc_strip_dasho(argvs []string)[]string{
 	var result []string
 	for i:=0;i<len(argvs);{
@@ -303,17 +198,7 @@ func dcc_strip_local_args(argvs []string)[]string{
 
 
 }
-func dcc_set_input(argvs []string,fname string)int{
-	for i:=0;i<len(argvs);i++{
-        if dcc_is_source(argvs[i]){
-        	argvs[i] = fname
-        	return 0
 
-        }
-	}
-
-	return 0
-}
 func dcc_remote_connect()(net.Conn,error){
    
 	 server := dcc_pick_host_from_list_and_lock_it()
@@ -329,93 +214,13 @@ func dcc_remote_connect()(net.Conn,error){
 	 }
      return conn,nil
 }
-func dcc_wait_response(conn net.Conn)(string,bool){
-	conn.SetReadDeadline(time.Now().Add(time.Second*3))
 
-    var res Response
-    buffer := make([]byte,2048)
-    n,err:=conn.Read(buffer)
-	if err!= nil{
-		log.Fatal(err)
-		return "",false
-	}
-    readbuffer:=buffer[:n]
-	if err:=json.Unmarshal(readbuffer,&res); err!= nil{
-		log.Printf("fail:%d,read:%d",n,len(buffer))
-		log.Fatal(err)
- 		return "",false
-    }
-    if res.Ret == false{
-    	return "",false
-    }
-    conn.SetReadDeadline(time.Time{})
-    return res.result,true
-}
-func dcc_response(conn net.Conn)bool{
-	tres:= Response{};
-    tres.Ret = true;
-    byt,_:=json.Marshal(tres)
-    conn.Write(byt)
-    return true
-}
-func dcc_get_filelength(filename string)(int,error){
-	 fileinfo,err:= os.Stat(filename)
-	 if err != nil{
-	 	log.Fatal(err)
-	 	return 0,err
-	 }
-     return int(fileinfo.Size()),nil
-}
-func dcc_r_file(filename string,conn net.Conn,filelength int)bool{
-	 buffer := make([]byte,2048)
 
-     f,err := os.OpenFile(filename,os.O_CREATE|os.O_RDWR,0777)
-     if err != nil{
-     	//log.Printf("open file:%s",filename)
-     	log.Println(err)
-        return false
-     }
-     defer f.Close()
-	for{
-		n,err:=conn.Read(buffer)
-		if err!= nil{
-			log.Println(conn.RemoteAddr().String(),"connection err",err)
-			return false
-		}
-		 _,err =f.Write(buffer[0:n])
-        if err!= nil{
-           return false
-        }
-        filelength= filelength - n
-        if filelength<=0{
-        	break
-        }
-	}
 
-	return true
 
-}
-func dcc_x_many_files(filename string,conn net.Conn)bool{
 
-	 file,err:=os.Open(filename)
-	 if err != nil{
-	 	log.Fatal(err)
-	 	return false
-	 }
-
-     data,err := ioutil.ReadAll(file)
-     if err != nil{
-        return false
-     }
-	 _,err=conn.Write(data)
-	 if err!= nil{
-		 log.Fatal(err)
-		 return false
-	 }  
-	 return true
-}
 func dcc_send_argv(server_side_argv []string,outputfile string,data []byte)net.Conn{
-	tmparg:=ServerArg{}
+	tmparg:=common.ServerArg{}
 	if len(server_side_argv) == 0{
 		return nil
 	}
@@ -442,7 +247,7 @@ func dcc_send_argv(server_side_argv []string,outputfile string,data []byte)net.C
     	log.Fatal(err)
     	return nil
     }
-    _,ret:=dcc_wait_response(conn)
+    _,ret:=common.Dcc_wait_response(conn)
     if ret == false{
     	return nil
     }
@@ -452,7 +257,7 @@ func dcc_send_argv(server_side_argv []string,outputfile string,data []byte)net.C
 		 return nil
 	}  
     //dcc_x_many_files(tmparg.Cpp_fname,conn)
-    _,ret=dcc_wait_response(conn)
+    _,ret=common.Dcc_wait_response(conn)
     if ret == false{
     	return nil
     }
@@ -467,16 +272,16 @@ func dcc_recv_output(conn net.Conn){
 			return 
 	}
 	readbuffer:=buffer[:n]
-	tmpout := OutputArg{}
+	tmpout := common.OutputArg{}
 	if err:=json.Unmarshal(readbuffer,&tmpout); err!= nil{
 		log.Printf("fail:%d,read:%d",n,len(buffer))
 		log.Fatal(err)
  		return 
     }
     log.Printf("1:%s,2:%s",tmpout.Cpp_fname,tmpout.File_length)
-    dcc_response(conn)
-    dcc_r_file(tmpout.Cpp_fname,conn,tmpout.File_length)
-    dcc_response(conn)
+    common.Dcc_response(conn)
+    common.Dcc_r_file(tmpout.Cpp_fname,conn,tmpout.File_length)
+    common.Dcc_response(conn)
 }
 func dcc_build_somewhere(argvs []string) int{
       
@@ -486,10 +291,10 @@ func dcc_build_somewhere(argvs []string) int{
       
       argvs = dcc_expand_preprocessor_options(argvs)
     
-      ret := dcc_scan_args(argvs,&outputfile,&input_file)
-      if ret == EXIT_DISTCC_FAILED{
+      ret := common.Dcc_scan_args(argvs,&outputfile,&input_file)
+      if ret == common.EXIT_DISTCC_FAILED{
       	 log.Printf("local")
-      	 dcc_compile_local(argvs,outputfile)
+      	 common.Dcc_compile_local(argvs,outputfile)
       	 return 0
       }
       data,flag:=dcc_cpp_maybe(argvs,input_file,&cpp_fanme)
@@ -506,25 +311,10 @@ func dcc_build_somewhere(argvs []string) int{
     
 	  return 0
 }
-type Response struct{
-	 Ret      bool    `json:"ret"`
-	 result   string  `json:"result"`
-}
-type ServerArg struct{
-     Server_side_argv string   `json:"server_side_argv"`
-     Cpp_fname        string   `json:"cpp_fname"`
-     File_length       int     `json:"file_length"`
-}
-type OutputArg struct{
-     Cpp_fname        string   `json:"cpp_fname"`
-     File_length       int     `json:"file_length"`
-}
-type CpuArg struct{
-     Ldavg1            float64   `json:"ldavg1"`
-     Ldavg5            float64   `json:"ldavg5"`
-     Ldavg10           float64   `json:"ldavg10"`
-     CPUNum           float64    `json:"cpunum"`
-}
+
+
+
+
 func dcc_pick_host_from_list_and_lock_it()string {
 	var distccgo_hosts string
 	distccgo_hosts = os.Getenv("DISTCCGO_HOSTS")
@@ -561,7 +351,16 @@ func test(){
 func usage(){
 	fmt.Fprintf(os.Stderr,"Usage: %s [arguments] <data-path> \n", os.Args[0])
 }
-
+func interruptListener()<-chan struct{}{
+	c:=make(chan struct{})
+	go func(){
+		interruptChannel :=make(chan os.Signal,1)
+	    signal.Notify(interruptChannel,os.Interrupt)
+	    <-interruptChannel
+	    close(c)
+	}()
+	return c
+}
 func main(){
      
      log.SetFlags(log.Ldate|log.Ltime |log.LUTC|log.Lshortfile)
@@ -571,10 +370,18 @@ func main(){
 		usage()
 		return 
 	 }
-     if args[0] == "dameon" {
-        dameon(args[1:])
-     	return 
-     }
+     
+     if args[0] == "worker"{
+     		done:=interruptListener()
+     		worker.RunWorker(args)
+     		<-done
+     		return 
+    }else if args[0] == "server"{
+    		done:=interruptListener()
+     		server.RunServer(args[1:])
+     		<-done
+     		return 
+     	}
      //dcc_build_somewhere(os.Args)
      dcc_build_somewhere(args[0:])
      return 

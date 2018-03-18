@@ -31,7 +31,7 @@ var WFlag flag.FlagSet
 var Woption   WorkerOption
 func init() {
       WFlag.StringVar(&Woption.masternode, "masternode", "localhost:4001", "masternode")
-      WFlag.StringVar(&Woption.host, "h", "localhost", "hostname")
+      WFlag.StringVar(&Woption.host, "h", "127.0.0.1", "hostname")
 }
 
 func NewWorker(workername string,masternode string,localip string)*Worker{
@@ -54,7 +54,7 @@ func RunWorker(argvs []string) bool {
     wk :=NewWorker(name,Woption.masternode,Woption.host)
 
     go wk.heartbeat()
-    wk.Dameon()
+    go wk.Dameon()
     return true 
 }
 func (wk *Worker) heartbeat(){

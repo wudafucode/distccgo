@@ -104,7 +104,7 @@ func (wk *Worker)Dameon(){
  
 	addr:= net.ParseIP(wk.localip)
     if addr == nil{
-        log.Printf("invalid ip address")
+        log.Printf("invalid ip address:%s",wk.localip)
     	return 
     }
    /* balanceserver:= *serverip +":8001"

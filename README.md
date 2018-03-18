@@ -6,7 +6,8 @@ make all -j16 CXX=distccgo gcc
 developer command
 sudo cp distccgo /bin/distccgo
 dameon useage：
-./distcc dameon -s 127.0.0.1 -c -l 127.0.0.1
-
+./distcc worker -s 127.0.0.1 -c -l 127.0.0.1
+./distcc server ./data
+./distcc worker 
  go build -a
 
