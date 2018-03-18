@@ -5,6 +5,7 @@ import (
     "time"
     "flag"
     "log"
+    //"os"
     "golang.org/x/net/context"
     "google.golang.org/grpc"
     "math/rand"
@@ -27,8 +28,11 @@ type WorkerOption struct {
 func (s *Worker) connectionString() string {
 	return fmt.Sprintf("http://%s", s.masternode)
 }
-var WFlag flag.FlagSet
-var Woption   WorkerOption
+
+var (
+    Woption   WorkerOption
+    WFlag     flag.FlagSet
+)
 func init() {
       WFlag.StringVar(&Woption.masternode, "masternode", "localhost:4001", "masternode")
       WFlag.StringVar(&Woption.host, "h", "127.0.0.1", "hostname")
@@ -44,13 +48,10 @@ func NewWorker(workername string,masternode string,localip string)*Worker{
 }
 func RunWorker(argvs []string) bool {
 
-    var workFlag flag.FlagSet
-    log.Print("worker running")
-
-
-    workFlag.Parse(argvs)
+    WFlag.Parse(argvs)
     
     name:= fmt.Sprintf("%07x", rand.Int())[0:7]
+    log.Printf("worker running,masternode:%s,host:%s",Woption.masternode,Woption.host)
     wk :=NewWorker(name,Woption.masternode,Woption.host)
 
     go wk.heartbeat()
@@ -126,8 +127,10 @@ func (wk *Worker) doheartbeat(){
 
 }
 func (wk *Worker) UpdateServerNode(servernode []string){
-
-
+    wk.servernodes = servernode
+    for i,v:=range wk.servernodes{
+         log.Println("num:%d,wk server:%s",i,v)
+    }
 }
 func (wk *Worker) CollectHeartbeat()*pb.Heartbeat{
     msg := pb.Heartbeat{

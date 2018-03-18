@@ -10,11 +10,12 @@ import (
 	"time"
 	"encoding/json"
 	"io/ioutil"
-    "math/rand"
+    //"math/rand"
     "flag"
     "./server"
     "./common"
 	"./worker"
+	"./monitor"
 )
 
 func copy_extra_args(presultargs* []string,args string)int {
@@ -327,25 +328,18 @@ func dcc_pick_host_from_list_and_lock_it()string {
 	return  ip_hosts[index]+":8000"
 }
 func test(){
-	buffer := make([]byte,2048)
-	conn,err:=dcc_remote_connect()
-    if err != nil{
-    	return 
-    }
-    for{
-         log.Printf("write")
-         conn.Write([]byte("Hello from client"))
+	var testFlag = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+    //var testFlag flag.FlagSet
+    var masternode string
+    var host string
+    testFlag.StringVar(&masternode, "masternode", "localhost:4001", "masternode")
+    testFlag.StringVar(&host, "h", "127.0.0.2", "hostname")
+    flag.Parse()
 
-         second:=rand.Intn(10)
-         time.Sleep(time.Duration(second)*time.Second)
-         n,err:=conn.Read(buffer)
-         if err!= nil{
-        	continue
-         }
-         log.Printf("client read:%d",n)
-
-
-     }
+    args := flag.Args()
+    testFlag.Parse(args[1:])   
+    
+    log.Printf("worker running masternode:%s,host:%s",masternode,host)
 
 }
 func usage(){
@@ -363,17 +357,19 @@ func interruptListener()<-chan struct{}{
 }
 func main(){
      
-     log.SetFlags(log.Ldate|log.Ltime |log.LUTC|log.Lshortfile)
-     flag.Parse()
-     args := flag.Args()
-	 if len(args) < 1 {
+    log.SetFlags(log.Ldate|log.Ltime |log.LUTC|log.Lshortfile)
+    //test()
+    flag.Parse()
+
+    args := flag.Args()
+	if len(args) < 1 {
 		usage()
 		return 
-	 }
+	}
      
-     if args[0] == "worker"{
+    if args[0] == "worker"{
      		done:=interruptListener()
-     		worker.RunWorker(args)
+     		worker.RunWorker(args[1:])
      		<-done
      		return 
     }else if args[0] == "server"{
@@ -381,7 +377,13 @@ func main(){
      		server.RunServer(args[1:])
      		<-done
      		return 
-     	}
+    }else if args[0] == "monitor"{
+    	done:=interruptListener()
+ 		monitor.RunMonitor(args[1:])
+ 		<-done
+ 		return
+
+    }
      //dcc_build_somewhere(os.Args)
      dcc_build_somewhere(args[0:])
      return 

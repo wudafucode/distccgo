@@ -37,6 +37,7 @@ type Server struct {
 	httpServer *http.Server
 	//db         *db.DB
 	mutex      sync.RWMutex
+	workers   map[string]bool
 }
 type ServerOption struct {
 
@@ -52,6 +53,7 @@ type ClusterStatusResult struct {
 	Leader   string   `json:"Leader,omitempty"`
 	Peers    []string `json:"Peers,omitempty"`
 }
+
 var SFlag flag.FlagSet
 var Soption    ServerOption
 func init() {
@@ -75,6 +77,7 @@ func NewServer(path string, host string, port int,masternode string) *Server {
 		//db:     db.New(),
 		masternode:masternode,
 		router: mux.NewRouter(),
+		workers:   make(map[string]bool),
 	}
 
 	// Read existing name or generate a new one.
@@ -178,7 +181,7 @@ func (s *Server) ListenAndServe(leader string) error {
 	//s.router.HandleFunc("/db/{key}", s.writeHandler).Methods("POST")
 	s.router.HandleFunc("/cluster/join", s.joinHandler).Methods("POST")
 	s.router.HandleFunc("/cluster/status", s.statusHandler).Methods("GET")
-
+	s.router.HandleFunc("/worker/status", s.workerHandler).Methods("GET")
 
 
     //lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d",Soption.host,4002))
@@ -259,21 +262,50 @@ func (s *Server) Peers() (members []string) {
 	return
 }
 func (s Server) SendHeartbeat(stream pb.Msg_SendHeartbeatServer) error {
+	 var worknode string 
      for{
-        heartbeat, _ := stream.Recv()
-
+        heartbeat, err := stream.Recv()
+        if err!=nil{
+        	s.deleteWorker(worknode)
+        	return err
+        }
         log.Printf("heart beat recv:%s",heartbeat.GetWorknode())
-
+        worknode = heartbeat.GetWorknode()
+        s.updateWorker(worknode)
         hr :=pb.HeartbeatResponse{
         	   
         	   Leader:s.masternode,
 			}
         if err := stream.Send(&hr); err != nil {
         	log.Println("send error",err)
+        	s.deleteWorker(worknode)
 			return err
 		} 
 
      }
+
+}
+func (s *Server) updateWorker(workernode string) {
+    _,exists:= s.workers[workernode]
+    if exists{
+    	return 
+    }
+    log.Printf("add worker node:%s",workernode)
+    s.workers[workernode]=true
+}
+func (s *Server) deleteWorker(workernode string) {
+	delete(s.workers,workernode)
+}
+func (s *Server) workerHandler(w http.ResponseWriter, r *http.Request) {
+	
+	var workers []string
+	
+	for wk,_:=range s.workers{
+		workers=append(workers,wk)
+	}
+	workers=append(workers,"123")
+    
+    writeJsonQuiet(w, r, http.StatusOK,workers)
 
 }
 func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {

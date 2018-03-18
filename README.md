@@ -10,4 +10,4 @@ dameon useage：
 ./distcc server ./data
 ./distcc worker 
  go build -a
-
+http://127.0.0.1:4001/cluster/status
