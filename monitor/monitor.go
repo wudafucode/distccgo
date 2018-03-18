@@ -9,7 +9,8 @@ import (
     //"net/url"
     "io/ioutil"
     "encoding/json"
-    "os"
+    //"os"
+    "github.com/gorilla/mux"
 
 )
 var (
@@ -18,6 +19,8 @@ var (
 )
 type Monitor struct{
     workernodes [] string
+    router     *mux.Router
+    httpServer *http.Server
 }
 func init() {
     MFlag.StringVar(&masternode, "masternode", "localhost:4001", "masternode")
@@ -26,10 +29,18 @@ func init() {
 func RunMonitor(argvs []string) bool {
     mon:=Monitor{
         workernodes: make([]string,10),
+        router: mux.NewRouter(),
     }
     MFlag.Parse(argvs)
     log.Printf("local monitor running,masternode:%s",masternode)
     go mon.GetNode(masternode)
+
+    mon.router.HandleFunc("/worker", mon.workerHandler).Methods("GET")
+    mon.httpServer = &http.Server{
+        Addr:    fmt.Sprintf("localhost:8001"),
+        Handler: mon.router,
+    }
+    go mon.httpServer.ListenAndServe()
 	return true
 }
 func Get(url string) ([]byte, error) {
@@ -48,6 +59,18 @@ func Get(url string) ([]byte, error) {
     }
     return b, nil
 }
+
+func (m *Monitor)workerHandler(w http.ResponseWriter, r *http.Request) {
+    
+    //todo set the lock
+    var value string
+    if len(m.workernodes) != 0{
+         value =m.workernodes[0]
+    }
+   
+    w.Write([]byte(value))
+
+}
 func (m *Monitor)GetWorker(url string)([]string,error){
     ret := make([]string,10)
     jsonBlob, err := Get(url)
@@ -65,15 +88,6 @@ func (m *Monitor)updateInfo(nodes []string) bool{
    
     log.Printf("get worker:%d",len(nodes))
     m.workernodes = nodes
-    var ret string
-    for _,v:=range(m.workernodes){
-    
-        ret=ret+v+" "
-    }
-    err:=os.Setenv("DISTCCGO_HOSTS",ret)
-    if err!=nil{
-        log.Println("error",err)
-    }
 
     return true
 }
