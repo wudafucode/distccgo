@@ -64,10 +64,12 @@ func (m *Monitor)workerHandler(w http.ResponseWriter, r *http.Request) {
     
     //todo set the lock
     var value string
+
     if len(m.workernodes) != 0{
-         value =m.workernodes[0]
+        index := time.Now().Nanosecond()%len(m.workernodes)
+        value =m.workernodes[index]
     }
-   
+    
     w.Write([]byte(value))
 
 }

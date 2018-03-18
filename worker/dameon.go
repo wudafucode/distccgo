@@ -85,32 +85,13 @@ func loadbalance(){
 
 func (wk *Worker)Dameon(){
    
-	/*log.SetFlags(log.Ldate|log.Ltime |log.LUTC |log.Lshortfile)
-    var dameonFlag flag.FlagSet
-    serverip:= dameonFlag.String("s","","serverip")
-   
-    localip:=dameonFlag.String("l","","localip")
 
-    dameonFlag.Parse(argvs)*/
-   
-    /*if *serverip == "" || *localip == ""{
-        log.Printf("serverip:%s,localip:%s",*serverip,*localip)
-        return
-    }
-    if *controler == true{
-        go loadbalance()
-    }*/
-
- 
 	addr:= net.ParseIP(wk.localip)
     if addr == nil{
         log.Printf("invalid ip address:%s",wk.localip)
     	return 
     }
-   /* balanceserver:= *serverip +":8001"
-	go loadavg(balanceserver)*/
-    
-    
+   
     localinfo:= wk.localip + ":8000"
 	netlisten,err:= net.Listen("tcp",localinfo)
 	if err != nil{

@@ -16,6 +16,7 @@ import (
     "./common"
 	"./worker"
 	"./monitor"
+	"net/http"
 )
 
 func copy_extra_args(presultargs* []string,args string)int {
@@ -308,15 +309,33 @@ func dcc_build_somewhere(argvs []string) int{
 
       //dcc_compile_local(server_side_argv,outputfile)
       log.Printf("server_side_argv:%s,\n",server_side_argv)
+      if conn == nil{
+      	return 1
+      }
       dcc_recv_output(conn)
     
 	  return 0
 }
-
-
-
-
 func dcc_pick_host_from_list_and_lock_it()string {
+    resp, err := http.Get("http://localhost:8001/worker")
+    if err!=nil{
+  	  log.Printf("there is no useful distccgo_hosts")
+  	  return ""
+    }
+    defer resp.Body.Close()
+    body, err := ioutil.ReadAll(resp.Body)
+    if err!=nil{
+    	log.Printf("read err")
+    	return ""
+    }
+    ret :=string(body)
+    fmt.Println(ret)
+    return ret + ":8000"
+}
+
+
+
+func dcc_pick_host_from_list_and_lock_itss()string {
 	var distccgo_hosts string
 	distccgo_hosts = os.Getenv("DISTCCGO_HOSTS")
 	ip_hosts := strings.Split(distccgo_hosts," ")
@@ -385,6 +404,7 @@ func main(){
 
     }
      //dcc_build_somewhere(os.Args)
+     //dcc_pick_host_from_list_and_lock_itss()
      dcc_build_somewhere(args[0:])
      return 
 	
