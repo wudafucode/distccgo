@@ -53,9 +53,11 @@ type ClusterStatusResult struct {
 	Leader   string   `json:"Leader,omitempty"`
 	Peers    []string `json:"Peers,omitempty"`
 }
+var (
+  Soption    ServerOption
+  SFlag      flag.FlagSet
+)
 
-var SFlag flag.FlagSet
-var Soption    ServerOption
 func init() {
 	SFlag.BoolVar(&Soption.verbose, "v", false, "verbose logging")
 	SFlag.BoolVar(&Soption.trace, "trace", false, "Raft trace debugging")
@@ -93,9 +95,10 @@ func NewServer(path string, host string, port int,masternode string) *Server {
 	return s
 }
 func RunServer(argvs []string){
-
+	
     SFlag.Parse(argvs)
     //args := flag.Args()
+
 	if Soption.verbose {
 		log.Print("Verbose logging enabled.")
 	}
@@ -134,7 +137,7 @@ func (s *Server) connectionString() string {
 func (s *Server) ListenAndServe(leader string) error {
 	var err error
 
-	log.Printf("Initializing Raft Server: %s", s.path)
+	log.Printf("Initializing Raft Server: %s,host:%s,port:%d", s.path,Soption.host,Soption.port)
 
 	// Initialize and start Raft server.
 	transporter := raft.NewHTTPTransporter("/raft", 200*time.Millisecond)
@@ -303,7 +306,7 @@ func (s *Server) workerHandler(w http.ResponseWriter, r *http.Request) {
 	for wk,_:=range s.workers{
 		workers=append(workers,wk)
 	}
-	workers=append(workers,"123")
+	//workers=append(workers,"123")
     
     writeJsonQuiet(w, r, http.StatusOK,workers)
 
