@@ -356,13 +356,14 @@ func test(){
     flag.Parse()
 
     args := flag.Args()
-    testFlag.Parse(args[1:])   
+    testFlag.Parse(args)   
     
     log.Printf("worker running masternode:%s,host:%s",masternode,host)
 
 }
 func usage(){
 	fmt.Fprintf(os.Stderr,"Usage: %s [arguments] <data-path> \n", os.Args[0])
+    fmt.Printf("fail\n")
 }
 func interruptListener()<-chan struct{}{
 	c:=make(chan struct{})
@@ -378,21 +379,22 @@ func main(){
      
     log.SetFlags(log.Ldate|log.Ltime |log.LUTC|log.Lshortfile)
     //test()
+    
     flag.Parse()
 
     args := flag.Args()
+   
 	if len(args) < 1 {
 		usage()
 		return 
 	}
-     
     if args[0] == "worker"{
      		done:=interruptListener()
      		worker.RunWorker(args[1:])
      		<-done
      		return 
     }else if args[0] == "server"{
-    		done:=interruptListener()
+    		done:=interruptListener() 
      		server.RunServer(args[1:])
      		<-done
      		return 
@@ -405,7 +407,8 @@ func main(){
     }
      //dcc_build_somewhere(os.Args)
      //dcc_pick_host_from_list_and_lock_itss()
-     dcc_build_somewhere(args[0:])
-     return 
+     //log.Printf("delete worker node:%s",len(args[0:]))
+    dcc_build_somewhere(args)
+    return 
 	
 }

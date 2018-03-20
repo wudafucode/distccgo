@@ -272,7 +272,7 @@ func (s Server) SendHeartbeat(stream pb.Msg_SendHeartbeatServer) error {
         	s.deleteWorker(worknode)
         	return err
         }
-        log.Printf("heart beat recv:%s",heartbeat.GetWorknode())
+        //log.Printf("heart beat recv:%s",heartbeat.GetWorknode())
         worknode = heartbeat.GetWorknode()
         s.updateWorker(worknode)
         hr :=pb.HeartbeatResponse{
@@ -297,6 +297,7 @@ func (s *Server) updateWorker(workernode string) {
     s.workers[workernode]=true
 }
 func (s *Server) deleteWorker(workernode string) {
+	log.Printf("delete worker node:%s",workernode)
 	delete(s.workers,workernode)
 }
 func (s *Server) workerHandler(w http.ResponseWriter, r *http.Request) {
